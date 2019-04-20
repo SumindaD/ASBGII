@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28809.33
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GIIService", "GIIService\GIIService.csproj", "{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Debug|x86.Build.0 = Debug|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Release|x86.ActiveCfg = Release|Any CPU
+		{0BD7AC60-15C1-43E8-9B53-5029BC2265BB}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {92901F50-4CBF-4B31-877E-9539E198BDD1}
+	EndGlobalSection
+EndGlobal
