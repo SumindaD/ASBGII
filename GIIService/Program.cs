@@ -1,11 +1,14 @@
 ﻿using Microsoft.Azure.ServiceBus;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Sandboxable.Microsoft.WindowsAzure.Storage;
+using Sandboxable.Microsoft.WindowsAzure.Storage.File;
 using SautinSoft.Document;
 using SautinSoft.Document.Drawing;
 using System;
 using System.Configuration;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -23,16 +26,12 @@ namespace GIIService
         static void Main(string[] args)
         {
             Console.WriteLine("Started Process..");
-            MainAsync().GetAwaiter().GetResult();
-        }
-
-        static async Task MainAsync()
-        {
             queueClient = new QueueClient(ConfigurationManager.AppSettings.Get("ServiceBusConnectionString"), ConfigurationManager.AppSettings.Get("QueueName"));
 
             // Register QueueClient's MessageHandler and receive messages in a loop
             RegisterOnMessageHandlerAndReceiveMessages();
 
+            //Keep the app running to recieve service bus messages
             while (true)
                 Thread.Sleep(3000);
         }
@@ -48,7 +47,7 @@ namespace GIIService
             queueClient.RegisterMessageHandler(ProcessMessagesAsync, messageHandlerOptions);
         }
 
-        static async Task ProcessMessagesAsync(Message message, CancellationToken token)
+        private static async Task ProcessMessagesAsync(Message message, CancellationToken token)
         {
             Console.WriteLine($"Received message: SequenceNumber:{message.SystemProperties.SequenceNumber} Body:{Encoding.UTF8.GetString(message.Body)}");
 
@@ -56,28 +55,28 @@ namespace GIIService
             string year = jsonObject.year;
             string reportType = jsonObject.reportType;
 
+            //Ignore concurrent messages recieved from the queue when reports are being generated
             if (!processing)
             {
                 var thread = new Thread(new ParameterizedThreadStart(param =>
                 {
                     processing = true;
-                    GenerateReport();
+                    GenerateReport(year, reportType);
+                    UploadCountryBriefReports(year, reportType);
                     processing = false;
-                    
+
                 }));
                 thread.SetApartmentState(ApartmentState.STA);
                 thread.Start();
             }
-            
+
         }
 
         static Task ExceptionReceivedHandler(ExceptionReceivedEventArgs exceptionReceivedEventArgs)
         {
             return Task.CompletedTask;
         }
-
-
-        static void GenerateReport()
+        static void GenerateReport(string year, string reportType)
         {
 
             //Ranking data excel file details
@@ -270,7 +269,7 @@ namespace GIIService
             Excel.Worksheet worksheetMissingData = workbookMissingOutdated.Sheets[workSheetNameMissingData];
             Excel.Worksheet worksheetOutdtedData = workbookMissingOutdated.Sheets[workSheetNameOutdatedData];
 
-            Console.WriteLine("create pillar list from worksheet name : (region worksheet)");
+            Console.WriteLine("Creating pillar list from worksheet");
             //create pillar list from worksheet name : (region worksheet)
             for (int i = 0; i < pilarCount; i++)
             {
@@ -301,9 +300,9 @@ namespace GIIService
             //To get graph1 (bar chart) y axis data
             graph1PillarList[7] = "Global Innovation Index 2018";
 
-            Console.WriteLine("generate report for all countries");
+            Console.WriteLine("Generating reports for all countries");
             //generate report for all countries
-            for (int i = GIICountryListRowStart; i <= GIICountryListRowStart; i++)
+            for (int i = GIICountryListRowStart; i <= GIICountryListRowEnd; i++)
             {
                 // Path to a loadable document.
                 string wordTemplatePath = ConfigurationManager.AppSettings.Get("wordTemplatePath");
@@ -311,6 +310,7 @@ namespace GIIService
                 DocumentCore dc = DocumentCore.Load(wordTemplatePath);
 
                 string country = (worksheetGII2018.Cells[i, GIICountryListColumn] as Excel.Range).Value2.ToString();
+                Console.WriteLine("Processing - " + country + "CountryBriefReport.docx");
                 worksheetStrengthWeakness.Cells[countryNameRow, countryNameColumn] = country; // change country name cell value for each country
 
                 worksheetMissingOutdatedFiltters.Cells[missingOutdatedCountryRow, missingOutdatedCountryColumn] = country;
@@ -940,6 +940,53 @@ namespace GIIService
 
             FindAndReplace("#regionAboveAvgPillars#", (averageAbovePillarText != "" ? averageAbovePillarText.Substring(0, averageAbovePillarText.Length - 2) : averageAbovePillarText), dc);
             FindAndReplace("#regionBelowAvgPillars#", (averageBelowpillarText != "" ? averageBelowpillarText.Substring(0, averageBelowpillarText.Length - 2) : averageBelowpillarText), dc);
+        }
+        public static void UploadCountryBriefReports(string year, string reportType)
+        {
+            Console.WriteLine("Uploading CountryBriefReports...");
+            // Parse the connection string and return a reference to the storage account.
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(ConfigurationManager.AppSettings.Get("StorageConnectionString"));
+
+            // Create a CloudFileClient object for credentialed access to Azure Files.
+            CloudFileClient fileClient = storageAccount.CreateCloudFileClient();
+
+            // Get a reference to the file share we created previously.
+            CloudFileShare share = fileClient.GetShareReference(ConfigurationManager.AppSettings.Get("FileShareReference"));
+
+            // Ensure that the share exists.
+            if (share.Exists())
+            {
+                // Get a reference to the root directory for the share.
+                CloudFileDirectory rootDir = share.GetRootDirectoryReference();
+
+                // Get a reference to the directory we created previously.
+                CloudFileDirectory sampleDir = rootDir.GetDirectoryReference("FileStorage\\Reports\\" + reportType + "\\" + year);
+
+                // Ensure that the directory exists.
+                if (sampleDir.Exists())
+                {
+                    // Get a reference to the file we created previously.
+
+                    string sourceDirectory = @"C:\GIICountryReports";
+
+                    var reportFiles = Directory.EnumerateFiles(sourceDirectory, "*.docx", SearchOption.TopDirectoryOnly);
+
+                    foreach (string currentFile in reportFiles)
+                    {
+                        string fileName = currentFile.Substring(sourceDirectory.Length + 1);
+                        Console.WriteLine("Uploading " + fileName);
+                        byte[] fileByteArray = File.ReadAllBytes(currentFile);
+
+                        // Create a new pdf file in the root directory.
+                        CloudFile sourceFileImage = sampleDir.GetFileReference(fileName);
+                        sourceFileImage.UploadFromByteArray(fileByteArray, 0, fileByteArray.Count<byte>());
+
+                        File.Delete(currentFile);
+
+                    }
+                }
+            }
+            Console.WriteLine("Uploading Completed!");
         }
     }
 }
