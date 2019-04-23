@@ -7,6 +7,7 @@ using SautinSoft.Document;
 using SautinSoft.Document.Drawing;
 using System;
 using System.Configuration;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -61,8 +62,12 @@ namespace GIIService
                 var thread = new Thread(new ParameterizedThreadStart(param =>
                 {
                     processing = true;
+                    KillAllExcelFileProcesses();
+                    ClearImages();
                     GenerateReport(year, reportType);
                     UploadCountryBriefReports(year, reportType);
+                    KillAllExcelFileProcesses();
+                    Console.WriteLine("Process Completed!");
                     processing = false;
 
                 }));
@@ -814,7 +819,7 @@ namespace GIIService
                 //System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(savePath) { UseShellExecute = true });
             }
 
-            Console.WriteLine("Completed!");
+            Console.WriteLine("Document generation completed!");
         }
         public static void replaceImage(string findText, DocumentCore dc, string pictPath, Bitmap image, string imageDisplaySize)
         {
@@ -987,6 +992,24 @@ namespace GIIService
                 }
             }
             Console.WriteLine("Uploading Completed!");
+        }
+
+        private static void KillAllExcelFileProcesses()
+        {
+            Console.WriteLine("Killing all EXCEL processes");
+            var processes = from p in Process.GetProcessesByName("EXCEL")
+                            select p;
+
+            foreach (var process in processes)
+                process.Kill();
+        }
+
+        private static void ClearImages()
+        {
+            var iamgeFiles = Directory.EnumerateFiles(ConfigurationManager.AppSettings.Get("GIICountryReportsPath"), "*.png", SearchOption.TopDirectoryOnly);
+
+            foreach (string currentFile in iamgeFiles)
+                File.Delete(currentFile);
         }
     }
 }
